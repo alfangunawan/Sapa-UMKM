@@ -38,6 +38,23 @@ type ElearningModule = {
   cover: number;
 };
 
+type ForumThread = {
+  id: string;
+  title: string;
+  author: string;
+  role: string;
+  timeAgo: string;
+  replies: number;
+  views: number;
+  status: 'Open' | 'Resolved';
+  excerpt: string;
+  tags: string[];
+  pinned?: boolean;
+  lastActivity: string;
+  lastActivityMinutes: number;
+  engagementScore: number;
+};
+
 const trainingBanners = {
   finance: require('@/assets/images/acara-manajemen-keuangan.png'),
   marketing: require('@/assets/images/acara-branding.png'),
@@ -124,6 +141,70 @@ const elearningModules: ElearningModule[] = [
   },
 ];
 
+const forumThreads: ForumThread[] = [
+  {
+    id: 'legalitas-umkm',
+    title: 'Tips mengurus legalitas usaha (NIB, Merek, Sertifikasi) dengan cepat',
+    author: 'Rina Sari',
+    role: 'Pendamping Koperasi',
+    timeAgo: '2 jam lalu',
+    replies: 18,
+    views: 320,
+    status: 'Open',
+    excerpt: 'Bagikan pengalaman Anda mengurus NIB, merek, dan sertifikasi halal. Apa saja dokumen wajib?',
+    tags: ['Legalitas', 'Perizinan'],
+    pinned: true,
+    lastActivity: 'Baru saja diperbarui oleh Dinas Koperasi',
+    lastActivityMinutes: 15,
+    engagementScore: 95,
+  },
+  {
+    id: 'akses-pembiayaan',
+    title: 'Akses pembiayaan UMKM: pengalaman KUR vs LPDB',
+    author: 'Budi Santoso',
+    role: 'Pelaku UMKM',
+    timeAgo: '5 jam lalu',
+    replies: 24,
+    views: 410,
+    status: 'Open',
+    excerpt: 'Teman-teman, yuk diskusi mengenai strategi pengajuan KUR dan LPDB. Apa saja syarat yang perlu disiapkan?',
+    tags: ['Pembiayaan', 'KUR'],
+    lastActivity: '15 menit lalu oleh Rika',
+    lastActivityMinutes: 35,
+    engagementScore: 88,
+  },
+  {
+    id: 'digital-marketing-sosmed',
+    title: 'Strategi konten TikTok untuk produk kerajinan',
+    author: 'Sinta Dewi',
+    role: 'Pelaku UMKM',
+    timeAgo: 'Kemarin',
+    replies: 12,
+    views: 265,
+    status: 'Resolved',
+    excerpt: 'Ada yang punya contoh konten viral? Bagaimana cara konsisten upload tanpa tim besar?',
+    tags: ['Pemasaran', 'Konten'],
+    lastActivity: '12 jam lalu oleh Admin Komunitas',
+    lastActivityMinutes: 720,
+    engagementScore: 72,
+  },
+  {
+    id: 'manajemen-operasional',
+    title: 'Menyusun SOP produksi yang sederhana dan efektif',
+    author: 'Dimas Pratama',
+    role: 'Pelaku UMKM',
+    timeAgo: '3 hari lalu',
+    replies: 7,
+    views: 198,
+    status: 'Open',
+    excerpt: 'SOP seperti apa yang cocok untuk tim kecil (5 orang)? Mohon share format atau template ya!',
+    tags: ['Operasional', 'Manajemen'],
+    lastActivity: '1 hari lalu oleh Lia',
+    lastActivityMinutes: 1440,
+    engagementScore: 60,
+  },
+];
+
 const categoryColors: Record<TrainingCategory, string> = {
   Keuangan: '#16a34a',
   Pemasaran: '#f97316',
@@ -136,8 +217,14 @@ const moduleTypeColors: Record<ElearningModule['type'], string> = {
   Kuis: '#f97316',
 };
 
-type ActiveTab = 'official' | 'elearning';
+const forumStatusColors: Record<ForumThread['status'], string> = {
+  Open: '#1d4ed8',
+  Resolved: '#16a34a',
+};
+
+type ActiveTab = 'official' | 'elearning' | 'forum';
 type ElearningTab = 'ongoing' | 'completed';
+type ForumFilter = 'trending' | 'recent' | 'open';
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -145,6 +232,7 @@ export default function CommunityScreen() {
   const [selectedCategory, setSelectedCategory] = useState<TrainingCategory | 'Semua'>('Semua');
   const [modeFilter, setModeFilter] = useState<DeliveryMode>('Online');
   const [elearningFilter, setElearningFilter] = useState<ElearningTab>('ongoing');
+  const [forumFilter, setForumFilter] = useState<ForumFilter>('trending');
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   const filteredTrainings = useMemo(() => {
@@ -163,6 +251,24 @@ export default function CommunityScreen() {
       return item.status === 'Completed';
     });
   }, [elearningFilter]);
+
+  const filteredThreads = useMemo(() => {
+    const trending = [...forumThreads].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return b.engagementScore - a.engagementScore;
+    });
+
+    if (forumFilter === 'recent') {
+      return [...forumThreads].sort((a, b) => a.lastActivityMinutes - b.lastActivityMinutes);
+    }
+
+    if (forumFilter === 'open') {
+      return trending.filter(item => item.status === 'Open');
+    }
+
+    return trending;
+  }, [forumFilter]);
 
   const stickyIndices = [1];
 
@@ -211,9 +317,15 @@ export default function CommunityScreen() {
           icon="cast-for-education"
           onPress={() => setActiveTab('elearning')}
         />
+        <TabButton
+          label="Forum UMKM"
+          active={activeTab === 'forum'}
+          icon="forum"
+          onPress={() => setActiveTab('forum')}
+        />
       </ThemedView>
 
-      {activeTab === 'official' ? (
+      {activeTab === 'official' && (
         <View style={styles.sectionGap}>
           <ThemedView style={styles.filterCard}>
             <View style={styles.filterRow}>
@@ -307,7 +419,9 @@ export default function CommunityScreen() {
             </Pressable>
           ))}
         </View>
-      ) : (
+      )}
+
+      {activeTab === 'elearning' && (
         <View style={styles.sectionGap}>
           <ThemedView style={styles.elearningHeader}>
             <View style={styles.elearningTabs}>
@@ -380,6 +494,180 @@ export default function CommunityScreen() {
                       </View>
                     ))}
                   </View>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {activeTab === 'forum' && (
+        <View style={styles.sectionGap}>
+          <ThemedView style={styles.forumHeader}>
+            <View style={styles.forumHeaderRow}>
+              <View>
+                <ThemedText type="defaultSemiBold" style={styles.forumTitleIntro}>
+                  Forum Komunikasi UMKM
+                </ThemedText>
+                <ThemedText style={styles.forumSubtitle}>
+                  Diskusi bersama pendamping dan pelaku UMKM lain, berbagi solusi nyata.
+                </ThemedText>
+              </View>
+              <Pressable
+                onPress={() =>
+                  Alert.alert(
+                    'Mulai Diskusi',
+                    'Fitur posting diskusi akan segera tersedia. Untuk sementara, bergabunglah pada topik yang ada ya!'
+                  )}
+                style={({ pressed }) => [styles.startThreadButton, pressed && styles.buttonPressed]}>
+                <MaterialIcons name="add-circle-outline" size={20} color="#ffffff" />
+                <ThemedText style={styles.startThreadText}>Mulai Diskusi</ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.forumStatsRow}>
+              <View style={styles.forumStatCard}>
+                <MaterialIcons name="chat" size={20} color="#1d4ed8" />
+                <View>
+                  <ThemedText type="defaultSemiBold">{forumThreads.length}</ThemedText>
+                  <ThemedText style={styles.forumStatLabel}>Topik Aktif</ThemedText>
+                </View>
+              </View>
+              <View style={styles.forumStatCard}>
+                <MaterialIcons name="groups" size={20} color="#16a34a" />
+                <View>
+                  <ThemedText type="defaultSemiBold">+180</ThemedText>
+                  <ThemedText style={styles.forumStatLabel}>Anggota Berbagi</ThemedText>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.forumFilters}>
+              <Pressable
+                onPress={() => setForumFilter('trending')}
+                style={({ pressed }) => [
+                  styles.forumFilterChip,
+                  forumFilter === 'trending' && styles.forumFilterChipActive,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <ThemedText
+                  style={
+                    forumFilter === 'trending'
+                      ? styles.forumFilterTextActive
+                      : styles.forumFilterText
+                  }>
+                  Trending
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => setForumFilter('recent')}
+                style={({ pressed }) => [
+                  styles.forumFilterChip,
+                  forumFilter === 'recent' && styles.forumFilterChipActive,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <ThemedText
+                  style={
+                    forumFilter === 'recent'
+                      ? styles.forumFilterTextActive
+                      : styles.forumFilterText
+                  }>
+                  Terbaru
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={() => setForumFilter('open')}
+                style={({ pressed }) => [
+                  styles.forumFilterChip,
+                  forumFilter === 'open' && styles.forumFilterChipActive,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <ThemedText
+                  style={
+                    forumFilter === 'open'
+                      ? styles.forumFilterTextActive
+                      : styles.forumFilterText
+                  }>
+                  Belum Terjawab
+                </ThemedText>
+              </Pressable>
+            </View>
+          </ThemedView>
+
+          <View style={styles.forumList}>
+            {filteredThreads.map(thread => (
+              <Pressable
+                key={thread.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/forum/detail',
+                    params: { id: thread.id },
+                  })
+                }
+                style={({ pressed }) => [styles.forumCard, pressed && styles.trainingCardPressed]}>
+                <View style={styles.forumCardHeader}>
+                  <View style={styles.forumTitleWrapper}>
+                    {thread.pinned ? (
+                      <View style={styles.pinnedBadge}>
+                        <MaterialIcons name="push-pin" size={14} color="#1d4ed8" />
+                        <ThemedText style={styles.pinnedText}>Pinned</ThemedText>
+                      </View>
+                    ) : null}
+                    <ThemedText type="defaultSemiBold" style={styles.forumCardTitle}>
+                      {thread.title}
+                    </ThemedText>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusPill,
+                      { backgroundColor: `${forumStatusColors[thread.status]}1A` },
+                    ]}>
+                    <MaterialIcons
+                      name={thread.status === 'Resolved' ? 'verified' : 'chat-bubble'}
+                      size={14}
+                      color={forumStatusColors[thread.status]}
+                    />
+                    <ThemedText
+                      style={[styles.statusPillText, { color: forumStatusColors[thread.status] }]}
+                    >
+                      {thread.status === 'Resolved' ? 'Selesai' : 'Diskusi Aktif'}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <ThemedText style={styles.forumExcerpt}>{thread.excerpt}</ThemedText>
+
+                <View style={styles.forumTagRow}>
+                  {thread.tags.map(tag => (
+                    <View key={tag} style={styles.forumTag}>
+                      <ThemedText style={styles.forumTagText}>{tag}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.forumMetaRow}>
+                  <View style={styles.forumMetaItem}>
+                    <MaterialIcons name="person" size={14} color="#475569" />
+                    <ThemedText style={styles.forumMetaText}>
+                      {thread.author} · {thread.role}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.forumMetaItem}>
+                    <MaterialIcons name="access-time" size={14} color="#475569" />
+                    <ThemedText style={styles.forumMetaText}>{thread.timeAgo}</ThemedText>
+                  </View>
+                </View>
+
+                <View style={styles.forumStatsFooter}>
+                  <View style={styles.forumStatItem}>
+                    <MaterialIcons name="question-answer" size={15} color="#1d4ed8" />
+                    <ThemedText style={styles.forumStatText}>{thread.replies} balasan</ThemedText>
+                  </View>
+                  <View style={styles.forumStatItem}>
+                    <MaterialIcons name="visibility" size={15} color="#1d4ed8" />
+                    <ThemedText style={styles.forumStatText}>{thread.views} dilihat</ThemedText>
+                  </View>
+                  <ThemedText style={styles.forumActivityText}>{thread.lastActivity}</ThemedText>
                 </View>
               </Pressable>
             ))}
@@ -762,6 +1050,197 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#0f172a',
     fontWeight: '600',
+  },
+  forumHeader: {
+    padding: 18,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    gap: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  forumHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  forumTitleIntro: {
+    fontSize: 16,
+  },
+  forumSubtitle: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  startThreadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#1d4ed8',
+  },
+  startThreadText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  forumStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  forumStatCard: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+  },
+  forumStatLabel: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  forumFilters: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  forumFilterChip: {
+    flex: 1,
+    borderRadius: 999,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: '#e2e8f0',
+  },
+  forumFilterChipActive: {
+    backgroundColor: '#1d4ed8',
+  },
+  forumFilterText: {
+    fontSize: 13,
+    color: '#1f2933',
+    fontWeight: '600',
+  },
+  forumFilterTextActive: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  forumList: {
+    gap: 16,
+  },
+  forumCard: {
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    padding: 18,
+    gap: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  forumCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  forumTitleWrapper: {
+    flex: 1,
+    gap: 6,
+  },
+  pinnedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#dbeafe',
+  },
+  pinnedText: {
+    fontSize: 11,
+    color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  forumCardTitle: {
+    fontSize: 15,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  forumExcerpt: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 20,
+  },
+  forumTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  forumTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#f1f5f9',
+  },
+  forumTagText: {
+    fontSize: 12,
+    color: '#334155',
+    fontWeight: '600',
+  },
+  forumMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  forumMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  forumMetaText: {
+    fontSize: 12,
+    color: '#475569',
+  },
+  forumStatsFooter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  forumStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  forumStatText: {
+    fontSize: 12,
+    color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  forumActivityText: {
+    fontSize: 12,
+    color: '#475569',
   },
   buttonPressed: {
     opacity: 0.85,
